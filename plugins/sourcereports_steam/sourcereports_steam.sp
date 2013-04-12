@@ -86,8 +86,11 @@ public Action:Command_Reload(client, args)
 //			LISTENER	 		//
 //////////////////////////////////
 
-public SteamReports_Listener(client, reported_player, Handle:receivers, String:message[])
+public SteamReports_Listener(client, String:reported_player[], Handle:receivers, String:message[])
 {
+	if(receivers == INVALID_HANDLE)
+		return;
+
 	decl String:m_szSteamID[256];
 	for(new i=0;i<GetArraySize(receivers);++i)
 	{

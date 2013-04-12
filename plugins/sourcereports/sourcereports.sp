@@ -10,6 +10,8 @@
 #define PLUGIN_VERSION "0.1"
 #define PLUGIN_URL ""
 
+#define CHAT_TAG "[SourceReports] "
+
 #define MAX_LISTENERS 32
 #define MAX_REASONS 64
 
@@ -32,6 +34,7 @@ enum Listener
 	String:szIdentifier[64],
 	Handle:hPlugin,
 	Report:fnListener,
+	Handle:hRecipients,
 }
 
 //////////////////////////////////
@@ -48,8 +51,11 @@ new g_eListeners[MAX_LISTENERS][Listener];
 
 new g_iListeners = 0;
 new g_iReasons = 0;
+new g_iCooldown[MAXPLAYERS+1] = {0,...};
 
+new String:g_szSelection[MAXPLAYERS+1][96];
 new String:g_szReasons[MAX_REASONS][256];
+new String:g_szServerIP[32];
 
 //////////////////////////////////
 //		PLUGIN DEFINITION		//
@@ -76,8 +82,15 @@ public OnPluginStart()
 	g_cvarMasterIP = RegisterConVar("sm_sourcereports_master_ip", "", "IP of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
 	g_cvarMasterPort = RegisterConVar("sm_sourcereports_master_ip", "", "Port of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
 
+	new Handle:m_hHostIP = FindConVar("hostip");
+	new Handle:m_hHostPort = FindConVar("hostport");
+	if(m_hHostIP == INVALID_HANDLE || m_hHostPort == INVALID_HANDLE)
+		SetFailState("Failed to determine server ip and port.");
+	new m_iServerPort = GetConVarInt(m_hHostPort);
+	new m_iServerIP = GetConVarInt(m_hHostIP);
+	Format(STRING(g_szServerIP), "%d.%d.%d.%d:%d", m_iServerIP >>> 24 & 255, m_iServerIP >>> 16 & 255, m_iServerIP >>> 8 & 255, m_iServerIP & 255, m_iServerPort);
+
 	LoadReasons();
-	LoadRecipientsKV();
 
 	LoadTranslations("sourcereports.phrases");
 
@@ -114,6 +127,15 @@ public OnConfigsExecuted()
 }
 
 //////////////////////////////
+//		CLIENT FORWARDS		//
+//////////////////////////////
+
+public OnClientConnected(client)
+{
+	g_iCooldown[client] = 0;
+}
+
+//////////////////////////////
 //			NATIVES			//
 //////////////////////////////
 
@@ -145,6 +167,8 @@ public Native_AddListener(Handle:plugin, numParams)
 	strcopy(g_eListeners[m_iIdx][szIdentifier], 64, m_szIdentifier);
 
 	++g_iListeners;
+
+	LoadRecipientsKV();
 
 	return true;
 }
@@ -179,25 +203,111 @@ public Native_RemoveListener(Handle:plugin, numParams)
 
 public Action:Command_Report(client, args)
 {
-	decl String:m_szSteamID[64];
-	decl String:m_szMessage[256];
+	if(g_iCooldown[client] > GetTime())
+	{
+		Chat(client, "%t", "Cooldown Active");
+		return Plugin_Handled;
+	}
 
-	GetCmdArg(1, m_szSteamID, 64);
-	GetCmdArg(2, STRING(m_szMessage));
+	if(GetClientCount() == 1)
+	{
+		Chat(client, "%t", "Noone to report");
+		return Plugin_Handled;
+	}
 
-	new Handle:m_hSteamIDs = CreateArray(256);
-	PushArrayString(m_hSteamIDs, m_szSteamID);
-
-	Call_StartFunction(g_eListeners[0][hPlugin], g_eListeners[0][fnListener]);
-	Call_PushCell(client);
-	Call_PushCell(client);
-	Call_PushCell(m_hSteamIDs);
-	Call_PushString(m_szMessage);
-	Call_Finish();
-
-	CloseHandle(m_hSteamIDs);
+	DisplayPlayerSelection(client);
 
 	return Plugin_Handled;
+}
+
+//////////////////////////////
+//			MENUS			//
+//////////////////////////////
+
+public DisplayPlayerSelection(client)
+{
+	new Handle:m_hMenu = CreateMenu(MenuHandler_PlayerSelection);
+	SetMenuTitle(m_hMenu, "%t", "Player Selection Title");
+
+	new String:m_szData[96];
+	LoopIngamePlayers(i)
+		if(client != i)
+		{
+			// In case the player leaves we save his name and SteamID
+			GetClientAuthString(i, STRING(m_szData));
+			new m_iLength = strlen(m_szData);
+			m_szData[m_iLength] = ',';
+			GetClientName(i, m_szData[m_iLength+1], sizeof(m_szData)-m_iLength+1);
+			AddMenuItem(m_hMenu, m_szData, m_szData[m_iLength+1]);
+		}
+
+	DisplayMenu(m_hMenu, client, 0);
+}
+
+public DisplayReasonSelection(client)
+{
+	new Handle:m_hMenu = CreateMenu(MenuHandler_ReasonSelection);
+	SetMenuTitle(m_hMenu, "%t", "Reason Selection Title");
+	SetMenuExitBackButton(m_hMenu, true);
+
+	for(new i=0;i<g_iReasons;++i)
+		AddMenuItem(m_hMenu, g_szReasons[i], g_szReasons[i]);
+
+	DisplayMenu(m_hMenu, client, 0);
+}
+
+public MenuHandler_PlayerSelection(Handle:menu, MenuAction:action, client, param2)
+{
+	if (action == MenuAction_End)
+		CloseHandle(menu);
+	else if (action == MenuAction_Select)
+	{
+		GetMenuItem(menu, param2, g_szSelection[client], sizeof(g_szSelection[]));
+		DisplayReasonSelection(client);
+	}
+}
+
+public MenuHandler_ReasonSelection(Handle:menu, MenuAction:action, client, param2)
+{
+	if (action == MenuAction_End)
+		CloseHandle(menu);
+	else if (action == MenuAction_Select)
+	{		
+		decl String:m_szTargetName[64];
+		decl String:m_szTargetSteamID[32];
+		decl String:m_szReason[256];
+		GetMenuItem(menu, param2, STRING(m_szReason));
+		new m_iIdx = FindCharInString(g_szSelection[client], ',');
+		g_szSelection[client][m_iIdx] = 0;
+		strcopy(STRING(m_szTargetSteamID), g_szSelection[client]);
+		strcopy(STRING(m_szTargetName), g_szSelection[client][m_iIdx+1]);
+
+		new String:m_szSteamID[32];
+		decl String:m_szName[64];
+		GetClientAuthString(client, STRING(m_szSteamID));
+		GetClientName(client, STRING(m_szName));
+
+		decl String:m_szMessage[2048];
+		Format(STRING(m_szMessage), "%t", "Report Message", m_szTargetName, m_szTargetSteamID, m_szName, m_szSteamID, m_szReason, g_szServerIP);
+
+		for(new i=0;i<MAX_LISTENERS;++i)
+		{
+			if(g_eListeners[i][hPlugin] == INVALID_HANDLE)
+				continue;
+			Call_StartFunction(g_eListeners[i][hPlugin], g_eListeners[i][fnListener]);
+			Call_PushCell(client);
+			Call_PushString(m_szTargetSteamID);
+			Call_PushCell(g_eListeners[i][hRecipients]);
+			Call_PushString(m_szMessage);
+			Call_Finish();
+		}
+
+		g_iCooldown[client] = GetTime()+g_eCvars[g_cvarCooldown][aCache];
+		Chat(client, "%t", "Reported Player", m_szTargetName);
+	}
+	else if(action==MenuAction_Cancel)
+		if (param2 == MenuCancel_ExitBack)
+			DisplayPlayerSelection(client);
 }
 
 //////////////////////////////////
@@ -218,5 +328,51 @@ public LoadReasons()
 
 public LoadRecipientsKV()
 {
+	decl String:m_szFile[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, STRING(m_szFile), "configs/sourcereports/recipients.txt");
+	new Handle:m_hKV = CreateKeyValues("Recipients");
+	FileToKeyValues(m_hKV, m_szFile);
+	if(!KvGotoFirstSubKey(m_hKV))
+		return 0;
+	
+	decl String:m_szIdentifier[64];
+	decl String:m_szIdx[11];
+	decl String:m_szRecipient[256];
 
+	new m_iIdx = 1;
+	new m_iListenerIdx = -1;
+	new m_iRecipients = 0;
+	do
+	{
+		m_iIdx = 1;
+		KvGetSectionName(m_hKV, STRING(m_szIdentifier));
+		PrintToServer(m_szIdentifier);
+		for(new i=0;i<MAX_LISTENERS;++i)
+			if(strcmp(g_eListeners[i][szIdentifier], m_szIdentifier)==0)
+			{
+				m_iListenerIdx = i;
+				break;
+			}
+		if(m_iListenerIdx == -1)
+			continue;
+
+		if(g_eListeners[m_iListenerIdx][hRecipients] != INVALID_HANDLE)
+			CloseHandle(g_eListeners[m_iListenerIdx][hRecipients]);
+		g_eListeners[m_iListenerIdx][hRecipients] = CreateArray(256);
+
+		m_szRecipient[0] = 1;
+		while(m_szRecipient[0] != 0)
+		{
+			IntToString(m_iIdx++, STRING(m_szIdx));
+			KvGetString(m_hKV, m_szIdx, STRING(m_szRecipient));
+			if(m_szRecipient[0] == 0)
+				break;
+			PushArrayString(g_eListeners[m_iListenerIdx][hRecipients], m_szRecipient);
+			++m_iRecipients;
+		}
+	} while (KvGotoNextKey(m_hKV));
+
+	CloseHandle(m_hKV);
+
+	return m_iRecipients;
 }
