@@ -114,7 +114,7 @@ bool SourceReports::GetSteamInterfaces()
 
 void SourceReports::DoThreadedLogin(char * username, char * password)
 {
-	g_pClientUser->LogOnWithPassword(false, "focus591", "iddqdiddqd");
+	g_pClientUser->LogOnWithPassword(false, username, password);
 #if defined _WIN32
 	DWORD m_dwThreadID;
 	CreateThread(NULL, 0, SourceReports_LoginThread, 0, 0, &m_dwThreadID);
