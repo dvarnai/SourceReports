@@ -1,0 +1,34 @@
+"Phrases"
+{
+	"Report Message"
+	{
+		"#format" "{1:s},{2:s},{3:s},{4:s},{5:s},{6:s}"
+		"en" "Player {1} ({2}) has been reported by {3} ({4}) with the following reason: {5}. Server IP: {6}. Report was provided by SourceReports."
+	}
+
+	"Player Selection Title"
+	{
+		"en" "Choose the player to report"
+	}
+
+	"Reason Selection Title"
+	{
+		"en" "Choose the reason of the report"
+	}
+
+	"Noone to report"
+	{
+		"en" "There's noone on the server to report."
+	}
+
+	"Cooldown Active"
+	{
+		"en" "Please wait some more before reporting someone again."
+	}
+
+	"Reported Player"
+	{
+		"#format" "{1:s}"
+		"en" "You have successfully reported {1}. Thanks for your help."
+	}
+}

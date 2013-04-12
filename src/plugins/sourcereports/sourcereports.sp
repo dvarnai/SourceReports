@@ -81,6 +81,7 @@ public OnPluginStart()
 	g_cvarListenPort = RegisterConVar("sm_sourcereports_listen_port", "", "Port to listen on to make this a master server for the reports.", TYPE_INT);
 	g_cvarMasterIP = RegisterConVar("sm_sourcereports_master_ip", "", "IP of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
 	g_cvarMasterPort = RegisterConVar("sm_sourcereports_master_ip", "", "Port of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
+	AutoExecConfig();
 
 	new Handle:m_hHostIP = FindConVar("hostip");
 	new Handle:m_hHostPort = FindConVar("hostport");

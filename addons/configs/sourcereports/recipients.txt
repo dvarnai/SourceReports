@@ -1,0 +1,7 @@
+"Recipients"
+{
+	"steam"
+	{
+		"1" "STEAM_0:1:3508232"
+	}
+}
