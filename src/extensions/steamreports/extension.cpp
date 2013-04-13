@@ -14,6 +14,8 @@ IClientEngine *g_pSteamClient = 0;
 IClientUser *g_pClientUser = 0;
 IClientFriends *g_pClientFriends = 0;
 
+IGameConfig *g_pGameConf = NULL;
+
 volatile bool g_bLoginThreadRunning = false;
 
 sp_nativeinfo_t g_Natives[] = 
@@ -28,6 +30,14 @@ sp_nativeinfo_t g_Natives[] =
 
 bool SourceReports::SDK_OnLoad(char * error, size_t maxlength, bool late)
 {
+	char conf_error[128];
+	if (!gameconfs->LoadGameConfigFile("steamreports.gamedata", &g_pGameConf, conf_error, sizeof(conf_error)))
+	{
+		if (conf_error[0])
+			snprintf(error, maxlength, "Could not read steamreports.gamedata.txt: %s", conf_error);
+		return false;
+	}
+
 	if(!GetSteamFactory())
 	{
 		snprintf(error, maxlength, "Failed to get Steam factory.");
@@ -207,6 +217,11 @@ static cell_t SteamReports_SendMessage(IPluginContext *pContext, const cell_t *p
 	if(!g_pClientUser->BLoggedOn())
 		return pContext->ThrowNativeError("There isn't any account logged in.");
 
+	static int SendMsgToFriend = -1;
+	if(SendMsgToFriend == -1)
+		g_pGameConf->GetOffset("IClientFriends::SendMsgToFriend", &SendMsgToFriend);
+
+
 	char * m_szSteamID;
 	char * m_szMessage;
 	pContext->LocalToString(params[1], &m_szSteamID);
@@ -217,7 +232,17 @@ static cell_t SteamReports_SendMessage(IPluginContext *pContext, const cell_t *p
 
 	if(g_pClientFriends->GetFriendPersonaState(m_hSteamID) != k_EPersonaStateOffline)
 	{
-		g_pClientFriends->SendMsgToFriend(m_hSteamID, k_EChatEntryTypeChatMsg, m_szMessage, strlen(m_szMessage)+1);
+		void **this_ptr = *(void ***)&g_pClientFriends;
+		void **vtable = *(void ***)g_pClientFriends;
+		void *func = vtable[SendMsgToFriend];
+
+		union {bool *(VFuncHelper::*mfpnew)(CSteamID, EChatEntryType, const void *, int32);
+#if defined _WIN32
+			void *addr;	} u; 	u.addr = func;
+#elif defined _LINUX
+			struct {void *addr; intptr_t adjustor;} s; } u; u.s.addr = func; u.s.adjustor = 0;
+#endif
+		(reinterpret_cast<VFuncHelper*>(this_ptr)->*u.mfpnew)(m_hSteamID, k_EChatEntryTypeChatMsg, m_szMessage, strlen(m_szMessage)+1);
 		return 1;
 	}
 

@@ -1,0 +1,41 @@
+"Games"
+{
+    "#default"
+    {
+        "#supported"
+        {
+            "game"      "cstrike"
+            "game"      "tf"
+            "game"      "hl2mp"
+            "game"      "dod"
+        }
+
+        "Offsets"
+        {
+            "IClientFriends::SendMsgToFriend"
+            {
+                "windows" "58"
+                "linux" "56"
+            }
+        }
+    }
+
+    "#default"
+    {
+        "#supported"
+        {
+            "game"      "csgo"
+            "game"      "l4d"
+            "game"      "l4d2"
+        }
+
+        "Offsets"
+        {
+            "IClientFriends::SendMsgToFriend"
+            {
+                "windows" "58"
+                "linux" "57"
+            }
+        }
+    }
+}  
