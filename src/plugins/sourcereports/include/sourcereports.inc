@@ -5,7 +5,7 @@
 
 funcenum Report
 {
-	public(client, String:reported_player[], Handle:receivers, String:message[])
+	public(String:reporting_player[], String:reported_player[], Handle:receivers, String:message[])
 }
 
 native SourceReports_AddListener(String:identifier[], Report:listener);

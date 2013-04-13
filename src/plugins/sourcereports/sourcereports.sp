@@ -25,6 +25,11 @@
 
 #include <zephstocks>
 
+#if defined REQUIRE_EXTESIONS
+#undef REQUIRE_EXTESIONS
+#endif
+#include <socket>
+
 //////////////////////////////
 //			ENUMS			//
 //////////////////////////////
@@ -57,6 +62,9 @@ new String:g_szSelection[MAXPLAYERS+1][96];
 new String:g_szReasons[MAX_REASONS][256];
 new String:g_szServerIP[32];
 
+new Handle:g_hListenSocket = INVALID_HANDLE;
+new Handle:g_hRelaySocket = INVALID_HANDLE;
+
 //////////////////////////////////
 //		PLUGIN DEFINITION		//
 //////////////////////////////////
@@ -77,10 +85,10 @@ public Plugin:myinfo =
 public OnPluginStart()
 {
 	g_cvarCooldown = RegisterConVar("sm_sourcereports_cooldown", "60", "Cooldown in seconds between two reports from the same person.", TYPE_INT);
-	g_cvarListenMagic = RegisterConVar("sm_sourcereports_listen_magic", "", "Magic code for the packets. In case this is a master server, make sure to set a code for security purposes.", TYPE_STRING);
-	g_cvarListenPort = RegisterConVar("sm_sourcereports_listen_port", "", "Port to listen on to make this a master server for the reports.", TYPE_INT);
+	g_cvarListenMagic = RegisterConVar("sm_sourcereports_magic", "", "Magic code for the packets. In case this is a master or relay server it must be set and should be matching on both servers.", TYPE_STRING);
+	g_cvarListenPort = RegisterConVar("sm_sourcereports_listen_port", "0", "Port to listen on to make this a master server for the reports.", TYPE_INT);
 	g_cvarMasterIP = RegisterConVar("sm_sourcereports_master_ip", "", "IP of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
-	g_cvarMasterPort = RegisterConVar("sm_sourcereports_master_ip", "", "Port of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_STRING);
+	g_cvarMasterPort = RegisterConVar("sm_sourcereports_master_port", "", "Port of the master server. If master IP and port are set, this server will only act as a relay for the reports.", TYPE_INT);
 	AutoExecConfig();
 
 	new Handle:m_hHostIP = FindConVar("hostip");
@@ -99,8 +107,17 @@ public OnPluginStart()
 	RegConsoleCmd("sm_calladmin", Command_Report);
 }
 
+public OnPluginEnd()
+{
+	if(g_hListenSocket != INVALID_HANDLE)
+		CloseHandle(g_hListenSocket);
+	if(g_hRelaySocket != INVALID_HANDLE)
+		CloseHandle(g_hRelaySocket);
+}
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
+	MarkNativeAsOptional("GetUserMessageType");
 	MarkNativeAsOptional("SocketIsConnected");
 	MarkNativeAsOptional("SocketCreate");
 	MarkNativeAsOptional("SocketBind");
@@ -126,6 +143,17 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnConfigsExecuted()
 {
+	if(GetExtensionFileStatus("socket.ext")!=1)
+		return;
+
+	if(g_eCvars[g_cvarListenPort][aCache] != 0 && g_eCvars[g_cvarListenMagic][sCache][0] != 0)
+	{
+		if(g_hListenSocket == INVALID_HANDLE)
+			SetupMasterSocket();
+	}
+	else if(g_eCvars[g_cvarMasterIP][sCache][0] != 0 && g_eCvars[g_cvarMasterPort][aCache] != 0)
+		if(g_hRelaySocket == INVALID_HANDLE)
+			SetupRelaySocket();
 }
 
 //////////////////////////////
@@ -303,20 +331,7 @@ public MenuHandler_ReasonSelection(Handle:menu, MenuAction:action, client, param
 		GetClientAuthString(client, STRING(m_szSteamID));
 		GetClientName(client, STRING(m_szName));
 
-		decl String:m_szMessage[2048];
-		Format(STRING(m_szMessage), "%t", "Report Message", m_szTargetName, m_szTargetSteamID, m_szName, m_szSteamID, m_szReason, g_szServerIP);
-
-		for(new i=0;i<MAX_LISTENERS;++i)
-		{
-			if(g_eListeners[i][hPlugin] == INVALID_HANDLE)
-				continue;
-			Call_StartFunction(g_eListeners[i][hPlugin], g_eListeners[i][fnListener]);
-			Call_PushCell(client);
-			Call_PushString(m_szTargetSteamID);
-			Call_PushCell(g_eListeners[i][hRecipients]);
-			Call_PushString(m_szMessage);
-			Call_Finish();
-		}
+		ReportPlayer(m_szName, m_szSteamID, m_szTargetName, m_szTargetSteamID, m_szReason, g_szServerIP);
 
 		g_iCooldown[client] = GetTime()+g_eCvars[g_cvarCooldown][aCache];
 		Chat(client, "%t", "Reported Player", m_szTargetName);
@@ -390,4 +405,179 @@ public LoadRecipientsKV()
 	CloseHandle(m_hKV);
 
 	return m_iRecipients;
+}
+
+public ReportPlayer(String:name[], String:steamid[], String:targetname[], String:targetsteamid[], String:reason[], String:ip[])
+{
+	if(g_hRelaySocket == INVALID_HANDLE)
+	{
+		decl String:m_szMessage[2048];
+		Format(STRING(m_szMessage), "%t", "Report Message", targetname, targetsteamid, name, steamid, reason, ip);
+
+		for(new i=0;i<MAX_LISTENERS;++i)
+		{
+			if(g_eListeners[i][hPlugin] == INVALID_HANDLE)
+				continue;
+			Call_StartFunction(g_eListeners[i][hPlugin], g_eListeners[i][fnListener]);
+			Call_PushString(steamid);
+			Call_PushString(targetsteamid);
+			Call_PushCell(g_eListeners[i][hRecipients]);
+			Call_PushString(m_szMessage);
+			Call_Finish();
+		}
+	}
+	else
+	{
+		new m_iLength = strlen(g_eCvars[g_cvarListenMagic][sCache])+480+7;
+		new String:m_szPacket[m_iLength];
+		new m_iIdx = 0;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, g_eCvars[g_cvarListenMagic][sCache])+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, ip)+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, name)+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, steamid)+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, targetname)+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, targetsteamid)+1;
+		m_iIdx += strcopy(m_szPacket[m_iIdx], m_iLength-m_iIdx, reason)+1;
+		SocketSend(g_hRelaySocket, m_szPacket, m_iIdx);
+	}
+}
+
+//////////////////////////////
+//			SOCKETS			//
+//////////////////////////////
+
+//////////////////////////////
+//			MASTER			//
+//////////////////////////////
+
+public SetupMasterSocket()
+{
+	new Handle:m_hHostIP = FindConVar("hostip");
+	new m_iServerIP = GetConVarInt(m_hHostIP);
+
+	decl String:m_szServerIP[32];
+	Format(STRING(m_szServerIP), "%d.%d.%d.%d", m_iServerIP >>> 24 & 255, m_iServerIP >>> 16 & 255, m_iServerIP >>> 8 & 255, m_iServerIP & 255);
+
+	g_hListenSocket = SocketCreate(SOCKET_TCP, Master_SocketError);
+	if(!SocketBind(g_hListenSocket, m_szServerIP, g_eCvars[g_cvarListenPort][aCache]))
+	{
+		LogError("[SourceReports] Failed to bind socket to %s:%d", m_szServerIP, g_eCvars[g_cvarListenPort][aCache]);
+		CloseHandle(g_hListenSocket);
+		return;
+	}
+
+	SocketListen(g_hListenSocket, Master_SocketIncoming);
+
+	LogMessage("[SourceReports] Listening on %s:%d", m_szServerIP, g_eCvars[g_cvarListenPort][aCache]);
+}
+
+public Master_SocketIncoming(Handle:socket, Handle:newSocket, String:remoteIP[], remotePort, any:arg)
+{
+	SocketSetReceiveCallback(newSocket, Master_ChildSocketReceive);
+	SocketSetDisconnectCallback(newSocket, Master_ChildSocketDisconnected);
+	SocketSetErrorCallback(newSocket, Master_ChildSocketError);
+}
+
+public Master_ChildSocketReceive(Handle:socket, String:receiveData[], const dataSize, any:hFile)
+{
+	new m_iMagicLength = strlen(g_eCvars[g_cvarListenMagic][sCache]);
+	if(dataSize < m_iMagicLength)
+		return;
+	if(strncmp(receiveData, g_eCvars[g_cvarListenMagic][sCache], m_iMagicLength)!=0)
+		return;
+
+	decl String:m_szRemoteIP[32];
+	decl String:m_szTargetName[64];
+	decl String:m_szTargetSteamID[32];
+	decl String:m_szName[64];
+	decl String:m_szSteamID[32];
+	decl String:m_szReason[256];
+
+	new m_iTerminators = 0;
+	for(new i=m_iMagicLength;i<dataSize;++i)
+		if(receiveData[i]==0)
+			++m_iTerminators;
+
+	if(m_iTerminators != 7)
+		return;
+
+	new m_iIdx = m_iMagicLength+1;
+
+	strcopy(STRING(m_szRemoteIP), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+	strcopy(STRING(m_szName), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+	strcopy(STRING(m_szSteamID), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+	strcopy(STRING(m_szTargetName), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+	strcopy(STRING(m_szTargetSteamID), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+	strcopy(STRING(m_szReason), receiveData[m_iIdx]);
+	m_iIdx += strlen(receiveData[m_iIdx])+1;
+
+	ReportPlayer(m_szName, m_szSteamID, m_szTargetName, m_szTargetSteamID, m_szReason, m_szRemoteIP);
+}
+
+public Master_ChildSocketDisconnected(Handle:socket, any:hFile)
+{
+	CloseHandle(socket);
+}
+
+public Master_ChildSocketError(Handle:socket, const errorType, const errorNum, any:ary)
+{
+	LogError("[SourceReports] Relay server socket error %d (errno %d)", errorType, errorNum);
+	CloseHandle(socket);
+}
+
+public Master_SocketError(Handle:socket, const errorType, const errorNum, any:data)
+{
+	LogError("[SourceReports] Master socket error %d (errno %d)", errorType, errorNum);
+	g_hListenSocket = INVALID_HANDLE;
+	CloseHandle(socket);
+}
+
+//////////////////////////////
+//			RELAY			//
+//////////////////////////////
+
+public SetupRelaySocket()
+{
+	g_hRelaySocket = SocketCreate(SOCKET_TCP, Relay_SocketError);
+	SocketConnect(g_hRelaySocket, Relay_SocketConnected, Relay_SocketReceive, Relay_SocketDisconnected, g_eCvars[g_cvarMasterIP][sCache], g_eCvars[g_cvarMasterPort][aCache]);
+}
+
+public Relay_SocketConnected(Handle:socket, any:data)
+{
+	LogMessage("[SourceReports] Relaying reports to %s:%d", g_eCvars[g_cvarMasterIP][sCache], g_eCvars[g_cvarMasterPort][aCache]);
+}
+
+public Relay_SocketReceive(Handle:socket, String:receiveData[], const dataSize, any:data)
+{
+}
+
+public Relay_SocketDisconnected(Handle:socket, any:data)
+{
+	LogMessage("[SourceReports] Stopped relaying reports.");
+	g_hRelaySocket = INVALID_HANDLE;
+	CloseHandle(socket);
+
+	CreateTimer(30.0, Relay_Reconnect, TIMER_REPEAT);
+}
+
+public Relay_SocketError(Handle:socket, const errorType, const errorNum, any:data)
+{
+	LogError("[SourceReports] Relay socket error %d (errno %d)", errorType, errorNum);
+	g_hRelaySocket = INVALID_HANDLE;
+	CloseHandle(socket);
+
+	CreateTimer(30.0, Relay_Reconnect, TIMER_REPEAT);
+}
+
+public Action:Relay_Reconnect(Handle:timer, any:data)
+{
+	if(g_eCvars[g_cvarMasterIP][sCache][0] != 0 && g_eCvars[g_cvarMasterPort][aCache] != 0)
+		if(g_hRelaySocket == INVALID_HANDLE)
+			SetupRelaySocket();
+	return Plugin_Stop;
 }

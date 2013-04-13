@@ -52,14 +52,17 @@ public OnPluginStart()
 
 	AutoExecConfig();
 
-	RegConsoleCmd("sm_sourcereports_reload", Command_Reload);
-
 	SourceReports_AddListener("steam", SteamReports_Listener);
 }
 
 public OnPluginEnd()
 {
 	SourceReports_RemoveListener();
+}
+
+public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+{
+	MarkNativeAsOptional("GetUserMessageType");
 }
 
 public OnConfigsExecuted()
@@ -97,27 +100,10 @@ public Action:Timer_IsLoggedIn(Handle:client, any:data)
 }
 
 //////////////////////////////////
-//			COMMANDS	 		//
-//////////////////////////////////
-
-public Action:Command_Reload(client, args)
-{
-	if(client != 0)
-		return Plugin_Continue;
-
-	if(SteamReports_IsLoggedIn())
-		SteamReports_Logout();
-	SteamReports_Login(g_eCvars[g_cvarUsername][sCache], g_eCvars[g_cvarPassword][sCache]);
-	CreateTimer(1.0, Timer_IsLoggedIn, TIMER_REPEAT);
-
-	return Plugin_Handled;
-}
-
-//////////////////////////////////
 //			LISTENER	 		//
 //////////////////////////////////
 
-public SteamReports_Listener(client, String:reported_player[], Handle:receivers, String:message[])
+public SteamReports_Listener(String:reporting_player[], String:reported_player[], Handle:receivers, String:message[])
 {
 	if(receivers == INVALID_HANDLE)
 		return;
