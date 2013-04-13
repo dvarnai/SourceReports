@@ -14,7 +14,7 @@
         {
             "IClientFriends::SendMsgToFriend"
             {
-                "windows" "58"
+                "windows" "57"
                 "linux" "56"
             }
         }
