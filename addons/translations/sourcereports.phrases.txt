@@ -1,34 +1,52 @@
 "Phrases"
 {
-	"Report Message"
-	{
-		"#format" "{1:s},{2:s},{3:s},{4:s},{5:s},{6:s}"
-		"en" "Player {1} ({2}) has been reported by {3} ({4}) with the following reason: {5}. Server IP: {6}. Report was provided by SourceReports."
-	}
-
-	"Player Selection Title"
-	{
-		"en" "Choose the player to report"
-	}
-
-	"Reason Selection Title"
-	{
-		"en" "Choose the reason of the report"
-	}
-
-	"Noone to report"
-	{
-		"en" "There's noone on the server to report."
-	}
-
-	"Cooldown Active"
-	{
-		"en" "Please wait some more before reporting someone again."
-	}
-
-	"Reported Player"
-	{
-		"#format" "{1:s}"
-		"en" "You have successfully reported {1}. Thanks for your help."
-	}
+        "Report Message"
+        {
+			"#format" "{1:s},{2:s},{3:s},{4:s},{5:s},{6:s}"
+			"en" "Player {1} ({2}) has been reported by {3} ({4}) with the following reason: {5}. Server IP: {6}. Report was provided by SourceReports."
+			"da" "Spiller {1} ({2}) er blevet rapporteret af {3} ({4}) med denne følgende grund {5}. Server IP: {6}. Rapporten blev leveret af SourceReports."
+			"hu" "{1} ({2}) jelentve lett {3} ({4}) által a következo indok miatt: {5}. Szerver IP: {6}. A jelzést a SourceReports biztosította."
+			"de" "Spieler {1} ({2}) wurde gemeldet von {3} ({4}) aus folgenden Grund: {5}. Server IP: {6}. Report wurde bereitgestellt von SourceReports."
+        }
+ 
+        "Player Selection Title"
+        {
+			"en" "Choose the player to report"
+			"da" "Vælg en spillere som du vil rapportere"
+			"hu" "Válaszd ki a játékost"
+			"de" "Wähle den Spieler aus den du melden möchtest"
+        }
+ 
+        "Reason Selection Title"
+        {
+			"en" "Choose the reason of the report"
+			"da" "Vælg en grund til din rapport"
+			"hu" "Válaszd ki az indokot"
+			"de" "Wähle einen Grund für das Melden aus"
+        }
+ 
+        "Noone to report"
+        {
+			"en" "There's none on the server to report."
+			"da" "Der er ingen spillere, som kan rapporteres på serveren"
+			"hu" "Nincs senki a szerveren rajtad kívül."
+			"de" "Es ist keiner auf dem Server den du melden kannst"
+        }
+ 
+        "Cooldown Active"
+        {
+			"en" "Please wait some more before reporting someone again."
+			"da" "Vent venligst, før du kan rapportere igen"
+			"hu" "Kérlek várj, mielott újból jelentessz valakit."
+			"de" "Bitte warte einen Moment bis du den nächsten Melden möchtest."
+        }
+ 
+        "Reported Player"
+        {
+			"#format" "{1:s}"
+			"en" "You have successfully reported {1}. Thanks for your help."
+			"da" "Du har med succes rapporteret {1}. Tak for din hjælp."
+			"hu" "{1} jelenetve lett. Köszönjük a segítséged."
+			"de" "Du hast erfolgreich {1} gemeldet. Danke für deine Hilfe."
+        }
 }
