@@ -30,7 +30,7 @@
 			"en" "There's none on the server to report."
 			"da" "Der er ingen spillere, som kan rapporteres på serveren"
 			"hu" "Nincs senki a szerveren rajtad kívül."
-			"de" "Es ist keiner auf dem Server den du melden kannst"
+			"de" "Es befindet sich keiner auf dem Server den du melden kannst"
         }
  
         "Cooldown Active"
