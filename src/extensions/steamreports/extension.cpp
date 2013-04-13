@@ -183,7 +183,7 @@ static cell_t SteamReports_Logout(IPluginContext *pContext, const cell_t *params
 	if(g_bLoginThreadRunning)
 		return pContext->ThrowNativeError("An account is being logged in.");
 	if(!g_pClientUser->BLoggedOn())
-		return pContext->ThrowNativeError("There isn't any accounts logged in.");
+		return pContext->ThrowNativeError("There isn't any account logged in.");
 
 	g_pClientUser->LogOff();
 
@@ -193,9 +193,11 @@ static cell_t SteamReports_Logout(IPluginContext *pContext, const cell_t *params
 static cell_t SteamReports_IsLoggedIn(IPluginContext *pContext, const cell_t *params)
 {
 	if(g_bLoginThreadRunning)
-		return pContext->ThrowNativeError("An account is being logged in.");
+		return 1;
 
-	return g_pClientUser->BLoggedOn();
+	if(g_pClientUser->BLoggedOn())
+		return 2;
+	return 0;
 }
 
 static cell_t SteamReports_SendMessage(IPluginContext *pContext, const cell_t *params)
@@ -203,7 +205,7 @@ static cell_t SteamReports_SendMessage(IPluginContext *pContext, const cell_t *p
 	if(g_bLoginThreadRunning)
 		return pContext->ThrowNativeError("An account is being logged in.");
 	if(!g_pClientUser->BLoggedOn())
-		return pContext->ThrowNativeError("There isn't any accounts logged in.");
+		return pContext->ThrowNativeError("There isn't any account logged in.");
 
 	char * m_szSteamID;
 	char * m_szMessage;
@@ -227,7 +229,7 @@ static cell_t SteamReports_AddFriend(IPluginContext *pContext, const cell_t *par
 	if(g_bLoginThreadRunning)
 		return pContext->ThrowNativeError("An account is being logged in.");
 	if(!g_pClientUser->BLoggedOn())
-		return pContext->ThrowNativeError("There isn't any accounts logged in.");
+		return pContext->ThrowNativeError("There isn't any account logged in.");
 
 	char * m_szSteamID;
 	pContext->LocalToString(params[1], &m_szSteamID);

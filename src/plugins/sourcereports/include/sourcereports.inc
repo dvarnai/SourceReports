@@ -10,6 +10,7 @@ funcenum Report
 
 native SourceReports_AddListener(String:identifier[], Report:listener);
 native SourceReports_RemoveListener();
+native Handle:SourceReports_GetRecipients();
 
 public SharedPlugin:_pl_sourcereports = 
 {

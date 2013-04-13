@@ -47,8 +47,10 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	g_cvarUsername = RegisterConVar("sm_sourcereports_steam_username", "focus591", "Username of the Steam account that should be logged in.", TYPE_STRING);
-	g_cvarPassword = RegisterConVar("sm_sourcereports_steam_password", "iddqdiddqd", "Password of the Steam account that should be logged in.", TYPE_STRING);
+	g_cvarUsername = RegisterConVar("sm_sourcereports_steam_username", "", "Username of the Steam account that should be logged in.", TYPE_STRING);
+	g_cvarPassword = RegisterConVar("sm_sourcereports_steam_password", "", "Password of the Steam account that should be logged in.", TYPE_STRING);
+
+	AutoExecConfig();
 
 	RegConsoleCmd("sm_sourcereports_reload", Command_Reload);
 
@@ -62,8 +64,36 @@ public OnPluginEnd()
 
 public OnConfigsExecuted()
 {
-	if(g_eCvars[g_cvarUsername][sCache][0] != 0 && g_eCvars[g_cvarPassword][sCache][0] != 0 && !SteamReports_IsLoggedIn())
+	if(g_eCvars[g_cvarUsername][sCache][0] != 0 && g_eCvars[g_cvarPassword][sCache][0] != 0 && SteamReports_IsLoggedIn() == kLoggedOff)
+	{
 		SteamReports_Login(g_eCvars[g_cvarUsername][sCache], g_eCvars[g_cvarPassword][sCache]);
+		CreateTimer(1.0, Timer_IsLoggedIn, TIMER_REPEAT);
+	}
+}
+
+//////////////////////////////////
+//			TIMERS	 			//
+//////////////////////////////////
+
+public Action:Timer_IsLoggedIn(Handle:client, any:data)
+{
+	new EAccountState:m_eState = SteamReports_IsLoggedIn();
+	if(m_eState == kLoggedOn)
+	{
+		new Handle:m_hRecipients = SourceReports_GetRecipients();
+		if(m_hRecipients != INVALID_HANDLE)
+		{
+			decl String:m_szSteamID[256];
+			for(new i=0;i<GetArraySize(m_hRecipients);++i)
+			{
+				GetArrayString(m_hRecipients, i, STRING(m_szSteamID));
+				SteamReports_AddFriend(m_szSteamID);
+			}
+		}
+		return Plugin_Stop;
+	} else if(m_eState == kLoggedOff)
+		return Plugin_Stop;
+	return Plugin_Continue;
 }
 
 //////////////////////////////////
@@ -78,6 +108,7 @@ public Action:Command_Reload(client, args)
 	if(SteamReports_IsLoggedIn())
 		SteamReports_Logout();
 	SteamReports_Login(g_eCvars[g_cvarUsername][sCache], g_eCvars[g_cvarPassword][sCache]);
+	CreateTimer(1.0, Timer_IsLoggedIn, TIMER_REPEAT);
 
 	return Plugin_Handled;
 }

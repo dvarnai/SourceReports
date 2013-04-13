@@ -119,6 +119,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 	CreateNative("SourceReports_AddListener", Native_AddListener);
 	CreateNative("SourceReports_RemoveListener", Native_RemoveListener);
+	CreateNative("SourceReports_GetRecipients", Native_GetRecipients);
 
 	return APLRes_Success;
 } 
@@ -176,12 +177,9 @@ public Native_AddListener(Handle:plugin, numParams)
 
 public Native_RemoveListener(Handle:plugin, numParams)
 {		
-	decl String:m_szIdentifier[64];
-	GetNativeString(1, STRING(m_szIdentifier));
-
 	new m_iIdx = -1;
 	for(new i=0;i<MAX_LISTENERS;++i)
-		if(strcmp(g_eListeners[i][szIdentifier], m_szIdentifier)==0)
+		if(g_eListeners[i][hPlugin] == plugin)
 		{
 			m_iIdx = i;
 			break;
@@ -198,6 +196,23 @@ public Native_RemoveListener(Handle:plugin, numParams)
 
 	return true;
 }
+
+public Native_GetRecipients(Handle:plugin, numParams)
+{
+	new m_iIdx = -1;
+	for(new i=0;i<MAX_LISTENERS;++i)
+		if(g_eListeners[i][hPlugin] == plugin)
+		{
+			m_iIdx = i;
+			break;
+		}
+
+	if(m_iIdx == -1)
+		return 0;
+
+	return _:g_eListeners[m_iIdx][hRecipients];
+}
+
 //////////////////////////////////
 //			COMMANDS	 		//
 //////////////////////////////////
@@ -347,7 +362,6 @@ public LoadRecipientsKV()
 	{
 		m_iIdx = 1;
 		KvGetSectionName(m_hKV, STRING(m_szIdentifier));
-		PrintToServer(m_szIdentifier);
 		for(new i=0;i<MAX_LISTENERS;++i)
 			if(strcmp(g_eListeners[i][szIdentifier], m_szIdentifier)==0)
 			{
