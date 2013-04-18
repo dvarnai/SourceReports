@@ -7,6 +7,7 @@
 			"da" "Spiller {1} ({2}) er blevet rapporteret af {3} ({4}) med denne følgende grund {5}. Server IP: {6}. Rapporten blev leveret af SourceReports."
 			"hu" "{1} ({2}) jelentve lett {3} ({4}) által a következo indok miatt: {5}. Szerver IP: {6}. A jelzést a SourceReports biztosította."
 			"de" "Spieler {1} ({2}) wurde gemeldet von {3} ({4}) aus folgenden Grund: {5}. Server IP: {6}. Report wurde bereitgestellt von SourceReports."
+			"ru" "На игрока {1} ({2}) была подана жалоба от {3} ({4}) по причине: {5}. IP сервера: {6}. Отчет был предоставлен SourceReports."
         }
  
         "Player Selection Title"
@@ -15,6 +16,7 @@
 			"da" "Vælg en spillere som du vil rapportere"
 			"hu" "Válaszd ki a játékost"
 			"de" "Wähle den Spieler aus den du melden möchtest"
+			"ru" "Выберите игрока для жалобы"
         }
  
         "Reason Selection Title"
@@ -23,6 +25,7 @@
 			"da" "Vælg en grund til din rapport"
 			"hu" "Válaszd ki az indokot"
 			"de" "Wähle einen Grund für das Melden aus"
+			"ru" "Выберите причину жалобы"
         }
  
         "Noone to report"
@@ -31,6 +34,7 @@
 			"da" "Der er ingen spillere, som kan rapporteres på serveren"
 			"hu" "Nincs senki a szerveren rajtad kívül."
 			"de" "Es befindet sich keiner auf dem Server den du melden kannst"
+			"ru" "Для подачи жалобы на сервере должны быть игроки."
         }
  
         "Cooldown Active"
@@ -39,6 +43,7 @@
 			"da" "Vent venligst, før du kan rapportere igen"
 			"hu" "Kérlek várj, mielott újból jelentessz valakit."
 			"de" "Bitte warte einen Moment bis du den nächsten Melden möchtest."
+			"ru" "Пожалуйста, подождите для того чтобы подать еще одну жалобу."
         }
  
         "Reported Player"
@@ -48,5 +53,6 @@
 			"da" "Du har med succes rapporteret {1}. Tak for din hjælp."
 			"hu" "{1} jelenetve lett. Köszönjük a segítséged."
 			"de" "Du hast erfolgreich {1} gemeldet. Danke für deine Hilfe."
+			"ru" "Вы успешно подали жалобу на {1}. Спасибо за вашу помощь."
         }
 }
